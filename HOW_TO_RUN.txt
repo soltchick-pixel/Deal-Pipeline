@@ -1,0 +1,54 @@
+===================================================
+  DEAL PIPELINE — Stuart Portfolio Consultants
+  HOW TO RUN  (Zero Install)
+===================================================
+
+HOW TO OPEN THE APP:
+---------------------
+1. Double-click  "Deal Pipeline App.html"
+2. It opens in your browser (Chrome or Edge)
+3. That's it — no install, no setup needed!
+
+
+FEATURES:
+----------
+  Dashboard   — Stats, overdue alerts, pipeline chart
+  All Deals   — Searchable table with every deal field
+  Kanban      — Visual board across all 5 stages
+  + Add Deal  — Button top-right to add a new deal
+  ✏️  Edit    — Edit any deal
+  →  Advance  — Move deal to next stage in one click
+  📧 Email    — Generate a follow-up email to copy/send
+  🗑 Delete   — Remove a deal (asks you to confirm)
+  Export CSV  — Download all your deals as a spreadsheet
+
+
+YOUR DATA:
+-----------
+  - Saves automatically in your browser (no files to manage)
+  - Use "Export CSV" regularly to back up your data
+  - If you clear your browser history/data, deals may be lost
+    — so export to CSV as your backup!
+  - Your data stays on your computer — never sent anywhere
+
+
+THE 5 PIPELINE STAGES:
+------------------------
+  Outreach → Meeting → Due Diligence → Negotiation → Closed
+
+
+IMPORTANT NOTES:
+-----------------
+  - Keep the browser tab open while using the app
+  - Works in Chrome and Edge (recommended)
+  - You need internet the first time (to load React/Tailwind)
+    After that it works offline too
+
+
+COMING LATER (optional upgrade):
+----------------------------------
+  Once Python is installed, the full backend version
+  (main.py) adds Gmail integration and AI email drafts.
+  For now the HTML version has everything you need.
+
+===================================================

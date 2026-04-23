@@ -1,0 +1,110 @@
+=====================================================
+  DEAL PIPELINE — Developer Guide
+  Stuart Portfolio Consultants
+=====================================================
+
+SOFTWARE INSTALLED BY SETUP.bat:
+----------------------------------
+  Python 3.11     — backend language
+  Node.js (LTS)   — frontend build tool
+  FastAPI         — Python web framework
+  Uvicorn         — Python web server
+  React 18        — frontend UI library
+  Vite            — fast frontend build tool
+  Tailwind CSS    — styling framework
+  SQLite          — local database (built into Python, no install)
+
+
+FIRST TIME — RUN ONCE:
+------------------------
+  Double-click:  SETUP.bat
+  Wait ~3 minutes for everything to install.
+
+
+EVERY DAY — START DEVELOPING:
+-------------------------------
+  Double-click:  DEV_START.bat
+
+  This opens 2 windows and your browser automatically:
+    Frontend (React):   http://localhost:5173
+    Backend (Python):   http://localhost:8000
+    API docs (auto):    http://localhost:8000/docs
+
+
+PROJECT STRUCTURE:
+-------------------
+  Deal Pipeline/
+  ├── SETUP.bat               ← First-time install
+  ├── DEV_START.bat           ← Daily start
+  ├── Deal Pipeline App.html  ← Backup (no-install version)
+  │
+  ├── backend/
+  │   ├── main.py             ← Python API (edit this for backend changes)
+  │   ├── requirements.txt    ← Python packages list
+  │   └── deals.db            ← Your database (auto-created)
+  │
+  └── frontend/
+      ├── package.json        ← Node packages list
+      ├── vite.config.js      ← Dev server config
+      ├── tailwind.config.js  ← Style config
+      └── src/
+          ├── App.jsx         ← Main app (tabs, routing)
+          ├── api.js          ← All API calls to backend
+          ├── constants.js    ← Shared data (stages, colours)
+          └── components/
+              ├── Dashboard.jsx    ← Dashboard tab
+              ├── DealTable.jsx    ← All Deals tab
+              ├── KanbanBoard.jsx  ← Kanban tab
+              ├── DealModal.jsx    ← Add/Edit deal form
+              ├── EmailModal.jsx   ← Email draft window
+              └── StageBadge.jsx   ← Stage colour pill
+
+
+HOW THE TWO PARTS CONNECT:
+----------------------------
+  React (port 5173)  ──API calls──►  Python (port 8000)
+                                            │
+                                       SQLite database
+                                         (deals.db)
+
+  During development, Vite automatically forwards
+  /deals, /stats, and /followups calls from the React
+  app to the Python backend.
+
+
+DEPLOYING TO A SERVER LATER:
+------------------------------
+  1. Build the React app:
+       cd frontend
+       npm run build
+     (This creates backend/static/ with the compiled files)
+
+  2. The backend/main.py already has everything needed
+     to serve those static files in production.
+
+  3. Copy the entire "backend" folder to your server.
+
+  4. On the server, run:
+       pip install -r requirements.txt
+       python main.py
+
+  5. Point your domain at port 8000.
+
+  Recommended servers: Railway, Render, DigitalOcean App
+  Platform — all have free tiers and are easy to use.
+
+
+YOUR DATABASE:
+---------------
+  All deals are stored in:  backend/deals.db
+  Back this file up to Google Drive or OneDrive regularly.
+  To restore: copy deals.db back into the backend/ folder.
+
+
+API DOCUMENTATION:
+-------------------
+  While DEV_START is running, go to:
+  http://localhost:8000/docs
+  You can see and test all API endpoints there.
+
+=====================================================

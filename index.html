@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deal Pipeline — Stuart Portfolio Consultants</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    // ── Constants ──────────────────────────────────────────────────────────
+    const STAGES = ['Outreach', 'Meeting', 'Due Diligence', 'Negotiation', 'Closed'];
+
+    const STAGE_META = {
+      'Outreach':      { badge: 'bg-blue-100 text-blue-800',   header: 'bg-blue-600',   card: '#2563eb' },
+      'Meeting':       { badge: 'bg-purple-100 text-purple-800', header: 'bg-purple-600', card: '#9333ea' },
+      'Due Diligence': { badge: 'bg-amber-100 text-amber-800',  header: 'bg-amber-500',  card: '#f59e0b' },
+      'Negotiation':   { badge: 'bg-orange-100 text-orange-800', header: 'bg-orange-500', card: '#f97316' },
+      'Closed':        { badge: 'bg-green-100 text-green-800',  header: 'bg-green-600',  card: '#16a34a' },
+    };
+
+    const STRATEGY_TYPES  = ['Hedge Fund','Private Credit','Real Assets','Private Equity','Infrastructure','Venture Capital','Other'];
+    const INVESTOR_TYPES  = ['Pension Fund','Endowment','Family Office','Sovereign Wealth Fund','Insurance Company','Foundation','Other'];
+    const INTRO_TYPES     = ['Referral','Conference','Cold Outreach','Existing Relationship'];
+
+    // ── API helpers ────────────────────────────────────────────────────────
+    const api = {
+      getDeals:    async (p = {}) => { const qs = new URLSearchParams(p).toString(); const r = await fetch(`/deals${qs ? '?'+qs : ''}`); return r.json(); },
+      createDeal:  async (d)     => { const r = await fetch('/deals',       { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d) }); return r.json(); },
+      updateDeal:  async (id, d) => { const r = await fetch(`/deals/${id}`, { method:'PUT',  headers:{'Content-Type':'application/json'}, body:JSON.stringify(d) }); return r.json(); },
+      deleteDeal:  async (id)    => { const r = await fetch(`/deals/${id}`, { method:'DELETE' }); return r.json(); },
+      advanceDeal: async (id)    => { const r = await fetch(`/deals/${id}/advance`, { method:'POST' }); return r.json(); },
+      getStats:    async ()      => { const r = await fetch('/stats'); return r.json(); },
+    };
+
+    const today = () => new Date().toISOString().split('T')[0];
+
+    // ── StageBadge ─────────────────────────────────────────────────────────
+    const StageBadge = ({ stage }) => {
+      const m = STAGE_META[stage] || { badge: 'bg-gray-100 text-gray-700' };
+      return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${m.badge}`}>{stage}</span>;
+    };
+
+    // ── DealModal (Add / Edit) ─────────────────────────────────────────────
+    const EMPTY_FORM = {
+      manager_name:'', investor:'', contact_person:'', contact_email:'',
+      stage:'Outreach', strategy_type:'', investor_type:'', geography:'',
+      mandate_size:'', introduction_type:'', fee_agreement_status:false,
+      last_activity_date:'', follow_up_date:'', notes:''
+    };
+
+    const DealModal = ({ deal, onSave, onClose }) => {
+      const [form, setForm] = useState(deal ? { ...EMPTY_FORM, ...deal } : EMPTY_FORM);
+      const [saving, setSaving] = useState(false);
+
+      const set = e => {
+        const { name, value, type, checked } = e.target;
+        setForm(p => ({ ...p, [name]: type === 'checkbox' ? checked : value }));
+      };
+
+      const submit = async e => {
+        e.preventDefault();
+        setSaving(true);
+        await onSave(form);
+        setSaving(false);
+      };
+
+      const inp  = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
+      const lbl  = "block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide";
+
+      return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-4">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-gray-900">{deal ? 'Edit Deal' : '+ Add New Deal'}</h2>
+              <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 text-xl">×</button>
+            </div>
+
+            <form onSubmit={submit} className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={lbl}>Manager Name *</label>
+                  <input className={inp} name="manager_name" value={form.manager_name} onChange={set} required placeholder="e.g. Apex Capital Management" />
+                </div>
+                <div>
+                  <label className={lbl}>Investor / Institution *</label>
+                  <input className={inp} name="investor" value={form.investor} onChange={set} required placeholder="e.g. CalPERS" />
+                </div>
+                <div>
+                  <label className={lbl}>Contact Person</label>
+                  <input className={inp} name="contact_person" value={form.contact_person} onChange={set} placeholder="Decision-maker name" />
+                </div>
+                <div>
+                  <label className={lbl}>Contact Email</label>
+                  <input className={inp} name="contact_email" value={form.contact_email} onChange={set} type="email" placeholder="email@example.com" />
+                </div>
+                <div>
+                  <label className={lbl}>Stage</label>
+                  <select className={inp} name="stage" value={form.stage} onChange={set}>
+                    {STAGES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={lbl}>Strategy Type</label>
+                  <select className={inp} name="strategy_type" value={form.strategy_type} onChange={set}>
+                    <option value="">Select…</option>
+                    {STRATEGY_TYPES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={lbl}>Investor Type</label>
+                  <select className={inp} name="investor_type" value={form.investor_type} onChange={set}>
+                    <option value="">Select…</option>
+                    {INVESTOR_TYPES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={lbl}>Introduction Type</label>
+                  <select className={inp} name="introduction_type" value={form.introduction_type} onChange={set}>
+                    <option value="">Select…</option>
+                    {INTRO_TYPES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={lbl}>Geography</label>
+                  <input className={inp} name="geography" value={form.geography} onChange={set} placeholder="e.g. California, USA" />
+                </div>
+                <div>
+                  <label className={lbl}>Mandate Size</label>
+                  <input className={inp} name="mandate_size" value={form.mandate_size} onChange={set} placeholder="e.g. $50M" />
+                </div>
+                <div>
+                  <label className={lbl}>Last Activity Date</label>
+                  <input className={inp} name="last_activity_date" value={form.last_activity_date} onChange={set} type="date" />
+                </div>
+                <div>
+                  <label className={lbl}>Follow-up Date</label>
+                  <input className={inp} name="follow_up_date" value={form.follow_up_date} onChange={set} type="date" />
+                </div>
+              </div>
+
+              <div>
+                <label className={lbl}>Notes</label>
+                <textarea className={inp} name="notes" value={form.notes} onChange={set} rows="4" placeholder="Meeting notes, next steps, observations…" />
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" name="fee_agreement_status" checked={form.fee_agreement_status} onChange={set} className="w-4 h-4 accent-blue-600 rounded" />
+                <span className="text-sm text-gray-700">Fee Agreement Documented</span>
+              </label>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={onClose} className="px-5 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+                <button type="submit" disabled={saving} className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-60">
+                  {saving ? 'Saving…' : 'Save Deal'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    };
+
+    // ── EmailModal ─────────────────────────────────────────────────────────
+    const EMAIL_TEMPLATES = {
+      'Outreach': (d) =>
+`Subject: Introduction — ${d.manager_name} × ${d.investor}
+
+Dear ${d.contact_person || 'Team'},
+
+I hope this message finds you well. I'm reaching out on behalf of ${d.manager_name} to introduce an investment opportunity I believe aligns with ${d.investor}'s mandate.
+
+${d.manager_name} is a ${d.strategy_type || 'investment'} manager with a compelling track record${d.geography ? ` focused on ${d.geography}` : ''}. Given your team's focus, I thought this would be a valuable conversation to initiate.
+
+Would you be available for a brief introductory call in the coming weeks? I'd be happy to share a one-page overview in advance.
+
+Warm regards,
+Stuart Oltchick
+Stuart Portfolio Consultants
+${d.contact_email ? '\nCopying: ' + d.contact_email : ''}`,
+
+      'Meeting': (d) =>
+`Subject: Follow-up — ${d.manager_name} × ${d.investor} Meeting
+
+Dear ${d.contact_person || 'Team'},
+
+Thank you for taking the time to meet and discuss ${d.manager_name}. Your engagement and questions were much appreciated.
+
+As a follow-up, I wanted to:
+  1. Confirm any additional materials you may have requested
+  2. Share the next steps we discussed
+  3. Suggest a follow-on conversation at your convenience
+
+Please don't hesitate to reach out with any questions. I look forward to continuing our dialogue.
+
+Best regards,
+Stuart Oltchick
+Stuart Portfolio Consultants`,
+
+      'Due Diligence': (d) =>
+`Subject: Due Diligence Support — ${d.manager_name}
+
+Dear ${d.contact_person || 'Team'},
+
+I wanted to check in on the due diligence process for ${d.manager_name} and ensure your team has everything needed to move forward.
+
+I'm available to:
+  - Facilitate additional data requests or reference calls
+  - Arrange direct introductions to ${d.manager_name}'s investment team
+  - Provide clarification on any outstanding questions
+
+Please let me know how I can be most helpful at this stage.
+
+Best regards,
+Stuart Oltchick
+Stuart Portfolio Consultants`,
+
+      'Negotiation': (d) =>
+`Subject: Next Steps — ${d.manager_name} × ${d.investor} Placement
+
+Dear ${d.contact_person || 'Team'},
+
+Thank you for the productive discussions around the potential placement with ${d.manager_name}. I'm pleased with the progress we've made together.
+
+I'd like to schedule a call to work through the remaining details and confirm the path forward. Please let me know your availability this week.
+
+Looking forward to finalising this arrangement.
+
+Best regards,
+Stuart Oltchick
+Stuart Portfolio Consultants`,
+
+      'Closed': (d) =>
+`Subject: Welcome — ${d.manager_name} × ${d.investor} Placement Confirmed
+
+Dear ${d.contact_person || 'Team'},
+
+It's a pleasure to confirm the successful completion of the placement between ${d.manager_name} and ${d.investor}. We are thrilled to have facilitated this relationship.
+
+Please don't hesitate to reach out during the onboarding process — I'm here to ensure a smooth transition. Looking forward to a long and productive partnership.
+
+Warm regards,
+Stuart Oltchick
+Stuart Portfolio Consultants`,
+    };
+
+    const EmailModal = ({ deal, onClose }) => {
+      const template = EMAIL_TEMPLATES[deal.stage] || EMAIL_TEMPLATES['Outreach'];
+      const [email, setEmail] = useState(template(deal));
+      const [copied, setCopied] = useState(false);
+
+      const copy = () => {
+        navigator.clipboard.writeText(email).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2500);
+        });
+      };
+
+      return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Email Draft</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{deal.manager_name} × {deal.investor} — <StageBadge stage={deal.stage} /></p>
+              </div>
+              <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 text-xl">×</button>
+            </div>
+
+            <div className="px-6 py-4 flex-1 overflow-y-auto">
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-700">
+                <span className="text-base">✏️</span>
+                <span>This is a stage-matched template — edit it before sending. Once you add an Anthropic API key, Claude AI will write fully personalised drafts automatically.</span>
+              </div>
+              <textarea
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                rows="20"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+              <button onClick={onClose} className="px-5 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Close</button>
+              <button onClick={copy} className={`px-5 py-2 rounded-lg text-sm font-semibold text-white transition-colors ${copied ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                {copied ? '✓ Copied to Clipboard!' : 'Copy to Clipboard'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ── Dashboard ──────────────────────────────────────────────────────────
+    const Dashboard = ({ stats, deals, onAdd, onEdit, onEmail }) => {
+      const t = today();
+      const overdue  = deals.filter(d => d.follow_up_date && d.follow_up_date < t && d.stage !== 'Closed');
+      const dueToday = deals.filter(d => d.follow_up_date === t && d.stage !== 'Closed');
+
+      return (
+        <div className="space-y-5">
+          {/* Alerts */}
+          {overdue.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+              <span className="text-lg mt-0.5">🔴</span>
+              <div>
+                <p className="font-semibold text-red-800 text-sm">{overdue.length} overdue follow-up{overdue.length > 1 ? 's' : ''} — action required</p>
+                <p className="text-xs text-red-500 mt-0.5">{overdue.map(d => `${d.manager_name} × ${d.investor}`).join(' · ')}</p>
+              </div>
+            </div>
+          )}
+          {dueToday.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+              <span className="text-lg mt-0.5">🟡</span>
+              <div>
+                <p className="font-semibold text-amber-800 text-sm">{dueToday.length} follow-up{dueToday.length > 1 ? 's' : ''} due today</p>
+                <p className="text-xs text-amber-600 mt-0.5">{dueToday.map(d => `${d.manager_name} × ${d.investor}`).join(' · ')}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Stats cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Deals',    value: stats.total    || 0, color: 'text-gray-900',  bg: 'bg-white',      icon: '📋' },
+              { label: 'Active',         value: stats.active   || 0, color: 'text-blue-700',  bg: 'bg-blue-50',    icon: '⚡' },
+              { label: 'Closed',         value: stats.closed   || 0, color: 'text-green-700', bg: 'bg-green-50',   icon: '✅' },
+              { label: 'Action Needed',  value: (stats.overdue || 0) + (stats.due_today || 0), color: 'text-red-700', bg: 'bg-red-50', icon: '🔔' },
+            ].map(({ label, value, color, bg, icon }) => (
+              <div key={label} className={`${bg} rounded-xl p-5 border border-gray-100 shadow-sm`}>
+                <div className="flex justify-between items-start">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+                  <span className="text-lg">{icon}</span>
+                </div>
+                <p className={`text-4xl font-bold mt-2 ${color}`}>{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Pipeline bar chart */}
+          {stats.by_stage && (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+              <h3 className="font-semibold text-gray-900 mb-4 text-sm">Pipeline by Stage</h3>
+              <div className="space-y-3">
+                {STAGES.map(stage => {
+                  const count = stats.by_stage[stage] || 0;
+                  const max   = Math.max(...Object.values(stats.by_stage), 1);
+                  const pct   = count > 0 ? Math.max((count / max) * 100, 4) : 0;
+                  const m     = STAGE_META[stage];
+                  return (
+                    <div key={stage} className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500 w-28 shrink-0">{stage}</span>
+                      <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                        <div
+                          className={`${m.header} h-full rounded-full transition-all duration-700`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-bold text-gray-700 w-5 text-right">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Recent deals */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <h3 className="font-semibold text-gray-900 mb-4 text-sm">Recent Deals</h3>
+            {deals.length === 0 ? (
+              <div className="text-center py-10">
+                <p className="text-4xl mb-3">📋</p>
+                <p className="text-gray-400 text-sm">No deals yet.</p>
+                <button onClick={onAdd} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-sm">Add Your First Deal</button>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {deals.slice(0, 6).map(deal => (
+                  <div key={deal.id} className="flex items-center justify-between py-3 group">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <StageBadge stage={deal.stage} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{deal.manager_name} <span className="text-gray-400 font-normal">×</span> {deal.investor}</p>
+                        {deal.follow_up_date && (
+                          <p className={`text-xs ${deal.follow_up_date < t ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>
+                            Follow-up: {deal.follow_up_date}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-3">
+                      <button onClick={() => onEmail(deal)} className="text-xs px-3 py-1 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium">Email</button>
+                      <button onClick={() => onEdit(deal)}  className="text-xs px-3 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 font-medium">Edit</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    // ── Deal Table ─────────────────────────────────────────────────────────
+    const DealTable = ({ deals, onEdit, onDelete, onAdvance, onEmail }) => {
+      const [stageF, setStageF] = useState('');
+      const [search, setSearch]  = useState('');
+      const t = today();
+
+      const filtered = deals.filter(d => {
+        const ms = !stageF || d.stage === stageF;
+        const mq = !search ||
+          d.manager_name.toLowerCase().includes(search.toLowerCase()) ||
+          d.investor.toLowerCase().includes(search.toLowerCase()) ||
+          (d.contact_person || '').toLowerCase().includes(search.toLowerCase());
+        return ms && mq;
+      });
+
+      const confirmDelete = (deal) => {
+        if (window.confirm(`Delete "${deal.manager_name} × ${deal.investor}"? This cannot be undone.`)) {
+          onDelete(deal.id);
+        }
+      };
+
+      return (
+        <div className="space-y-4">
+          <div className="flex gap-3 flex-wrap items-center">
+            <input
+              type="text"
+              placeholder="🔍  Search by manager, investor, or contact…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="border border-gray-200 rounded-lg px-4 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            />
+            <select
+              value={stageF}
+              onChange={e => setStageF(e.target.value)}
+              className="border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="">All Stages</option>
+              {STAGES.map(s => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+
+          <p className="text-xs text-gray-400">{filtered.length} deal{filtered.length !== 1 ? 's' : ''}</p>
+
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            {filtered.length === 0 ? (
+              <div className="text-center py-14 text-gray-400">
+                <p className="text-3xl mb-2">🔍</p>
+                <p className="text-sm">No deals match your filters.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      {['Manager','Investor','Contact','Stage','Strategy','Investor Type','Geography','Mandate','Follow-up','Fee Agreed','Actions'].map(h => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filtered.map(deal => (
+                      <tr key={deal.id} className="hover:bg-gray-50/60">
+                        <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">{deal.manager_name}</td>
+                        <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{deal.investor}</td>
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{deal.contact_person || '—'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap"><StageBadge stage={deal.stage} /></td>
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{deal.strategy_type || '—'}</td>
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{deal.investor_type || '—'}</td>
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{deal.geography || '—'}</td>
+                        <td className="px-4 py-3 text-blue-700 font-medium whitespace-nowrap">{deal.mandate_size || '—'}</td>
+                        <td className={`px-4 py-3 font-medium whitespace-nowrap text-xs ${deal.follow_up_date && deal.follow_up_date < t ? 'text-red-600' : deal.follow_up_date === t ? 'text-amber-600' : 'text-gray-500'}`}>
+                          {deal.follow_up_date || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-center">{deal.fee_agreement_status ? '✅' : '—'}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1 whitespace-nowrap">
+                            <button title="Draft email"   onClick={() => onEmail(deal)}   className="px-2 py-1 text-xs bg-blue-50  text-blue-700  rounded hover:bg-blue-100">📧</button>
+                            <button title="Edit deal"     onClick={() => onEdit(deal)}    className="px-2 py-1 text-xs bg-gray-100 text-gray-700  rounded hover:bg-gray-200">✏️</button>
+                            {deal.stage !== 'Closed' && (
+                              <button title="Advance stage" onClick={() => onAdvance(deal.id)} className="px-2 py-1 text-xs bg-green-50 text-green-700 rounded hover:bg-green-100">→</button>
+                            )}
+                            <button title="Delete"        onClick={() => confirmDelete(deal)} className="px-2 py-1 text-xs bg-red-50  text-red-600   rounded hover:bg-red-100">🗑</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    // ── Kanban Board ───────────────────────────────────────────────────────
+    const KanbanBoard = ({ deals, onEdit, onAdvance, onEmail }) => {
+      const t = today();
+      return (
+        <div className="flex gap-4 overflow-x-auto pb-4 min-h-96">
+          {STAGES.map(stage => {
+            const col  = deals.filter(d => d.stage === stage);
+            const meta = STAGE_META[stage];
+            return (
+              <div key={stage} className="flex-shrink-0 w-60">
+                <div className={`${meta.header} rounded-t-xl px-4 py-3 flex items-center justify-between`}>
+                  <span className="text-white text-sm font-bold">{stage}</span>
+                  <span className="bg-white/30 text-white text-xs font-bold px-2 py-0.5 rounded-full">{col.length}</span>
+                </div>
+                <div className="bg-gray-100 rounded-b-xl min-h-40 p-2 space-y-2">
+                  {col.length === 0 && (
+                    <p className="text-center text-gray-400 text-xs py-6">No deals</p>
+                  )}
+                  {col.map(deal => (
+                    <div
+                      key={deal.id}
+                      className="bg-white rounded-lg p-3 shadow-sm cursor-default hover:shadow-md transition-shadow"
+                      style={{ borderLeft: `4px solid ${meta.card}` }}
+                    >
+                      <p className="font-bold text-gray-900 text-sm leading-snug truncate" title={deal.manager_name}>{deal.manager_name}</p>
+                      <p className="text-xs text-gray-500 truncate mt-0.5" title={deal.investor}>{deal.investor}</p>
+                      {deal.contact_person && <p className="text-xs text-gray-400 mt-0.5">👤 {deal.contact_person}</p>}
+                      {deal.strategy_type  && <p className="text-xs text-gray-400 mt-0.5">📊 {deal.strategy_type}</p>}
+                      {deal.mandate_size   && <p className="text-xs font-semibold text-blue-600 mt-1">💰 {deal.mandate_size}</p>}
+                      {deal.follow_up_date && (
+                        <p className={`text-xs mt-1 font-medium ${deal.follow_up_date < t ? 'text-red-500' : deal.follow_up_date === t ? 'text-amber-500' : 'text-gray-400'}`}>
+                          📅 {deal.follow_up_date}
+                        </p>
+                      )}
+                      <div className="flex gap-1 mt-2.5">
+                        <button onClick={() => onEmail(deal)} className="flex-1 text-xs py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 font-medium">Email</button>
+                        <button onClick={() => onEdit(deal)}  className="flex-1 text-xs py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 font-medium">Edit</button>
+                        {stage !== 'Closed' && (
+                          <button onClick={() => onAdvance(deal.id)} className="flex-1 text-xs py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 font-medium">→ Next</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    };
+
+    // ── App (root) ─────────────────────────────────────────────────────────
+    const App = () => {
+      const [tab,           setTab]           = useState('dashboard');
+      const [deals,         setDeals]         = useState([]);
+      const [stats,         setStats]         = useState({});
+      const [loading,       setLoading]       = useState(true);
+      const [showModal,     setShowModal]     = useState(false);
+      const [editingDeal,   setEditingDeal]   = useState(null);
+      const [showEmail,     setShowEmail]     = useState(false);
+      const [emailDeal,     setEmailDeal]     = useState(null);
+
+      const load = useCallback(async () => {
+        try {
+          const [d, s] = await Promise.all([api.getDeals(), api.getStats()]);
+          setDeals(d);
+          setStats(s);
+        } catch(e) {
+          console.error(e);
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+
+      useEffect(() => { load(); }, [load]);
+
+      const openAdd  = () => { setEditingDeal(null); setShowModal(true); };
+      const openEdit = d  => { setEditingDeal(d);    setShowModal(true); };
+      const openEmail = d => { setEmailDeal(d); setShowEmail(true); };
+
+      const saveDeal = async form => {
+        if (editingDeal) await api.updateDeal(editingDeal.id, form);
+        else             await api.createDeal(form);
+        setShowModal(false);
+        setEditingDeal(null);
+        load();
+      };
+
+      const deleteDeal  = async id => { await api.deleteDeal(id);  load(); };
+      const advanceDeal = async id => { await api.advanceDeal(id); load(); };
+
+      const tabs = [
+        { id: 'dashboard', label: '📊  Dashboard' },
+        { id: 'table',     label: '📋  All Deals'   },
+        { id: 'kanban',    label: '🗂  Kanban'       },
+      ];
+
+      return (
+        <div className="min-h-screen bg-slate-50">
+          {/* ── Header ── */}
+          <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+            <div className="max-w-screen-xl mx-auto px-6 py-4 flex items-center justify-between">
+              <div>
+                <h1 className="text-base font-bold text-gray-900 leading-none">Deal Pipeline</h1>
+                <p className="text-xs text-gray-400 mt-0.5">Stuart Portfolio Consultants</p>
+              </div>
+              <button
+                onClick={openAdd}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-sm active:scale-95 transition-transform"
+              >
+                + Add Deal
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="max-w-screen-xl mx-auto px-6 flex gap-0.5">
+              {tabs.map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setTab(id)}
+                  className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                    tab === id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </header>
+
+          {/* ── Content ── */}
+          <main className="max-w-screen-xl mx-auto px-6 py-6">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-24 gap-4">
+                <div className="w-9 h-9 border-4 border-blue-600 border-t-transparent rounded-full spin" />
+                <p className="text-sm text-gray-400">Loading your pipeline…</p>
+              </div>
+            ) : (
+              <>
+                {tab === 'dashboard' && (
+                  <Dashboard stats={stats} deals={deals} onAdd={openAdd} onEdit={openEdit} onEmail={openEmail} />
+                )}
+                {tab === 'table' && (
+                  <DealTable deals={deals} onEdit={openEdit} onDelete={deleteDeal} onAdvance={advanceDeal} onEmail={openEmail} />
+                )}
+                {tab === 'kanban' && (
+                  <KanbanBoard deals={deals} onEdit={openEdit} onAdvance={advanceDeal} onEmail={openEmail} />
+                )}
+              </>
+            )}
+          </main>
+
+          {/* ── Modals ── */}
+          {showModal && (
+            <DealModal
+              deal={editingDeal}
+              onSave={saveDeal}
+              onClose={() => { setShowModal(false); setEditingDeal(null); }}
+            />
+          )}
+          {showEmail && emailDeal && (
+            <EmailModal
+              deal={emailDeal}
+              onClose={() => { setShowEmail(false); setEmailDeal(null); }}
+            />
+          )}
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
