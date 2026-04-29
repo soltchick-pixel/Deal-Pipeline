@@ -8,7 +8,7 @@ export const STAGE_META = {
   Closed:          { badge: 'bg-green-100 text-green-800',   bar: 'bg-green-600',   card: '#16a34a', col: 'bg-green-600'   },
 }
 
-export const STRATEGIES  = ['Hedge Fund','Private Credit','Real Assets','Private Equity','Infrastructure','Venture Capital','Other']
+export const STRATEGIES  = ['Hedge Fund','Private Credit','Real Estate Credit','Real Assets','Private Equity','Infrastructure','Venture Capital','Other']
 export const INV_TYPES   = ['Pension Fund','Endowment','Family Office','Sovereign Wealth Fund','Insurance Company','Foundation','Other']
 export const INTRO_TYPES = ['Referral','Conference','Cold Outreach','Existing Relationship']
 
