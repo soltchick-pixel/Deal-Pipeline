@@ -14,7 +14,10 @@ import pathlib
 import os
 
 BASE_DIR = pathlib.Path(__file__).parent
-DB_PATH  = BASE_DIR / "deals.db"
+# Use DATA_DIR env var (e.g. Railway Volume mount) for persistent storage; fall back to local dir
+DATA_DIR = pathlib.Path(os.environ.get("DATA_DIR", BASE_DIR))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+DB_PATH  = DATA_DIR / "deals.db"
 STAGES   = ["Outreach", "Meeting", "Due Diligence", "Negotiation", "Closed"]
 
 app = FastAPI(title="Deal Pipeline API", version="1.0.0")
