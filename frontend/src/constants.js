@@ -1,11 +1,13 @@
-export const STAGES = ['Outreach', 'Meeting', 'Due Diligence', 'Negotiation', 'Closed']
+export const STAGES = ['Outreach', 'Meeting', 'Due Diligence', 'Negotiation', 'Closed', 'Strategic Partners', 'Managers']
 
 export const STAGE_META = {
-  Outreach:        { badge: 'bg-blue-100 text-blue-800',    bar: 'bg-blue-600',    card: '#2563eb', col: 'bg-blue-600'    },
-  Meeting:         { badge: 'bg-purple-100 text-purple-800', bar: 'bg-purple-600',  card: '#9333ea', col: 'bg-purple-600'  },
-  'Due Diligence': { badge: 'bg-amber-100 text-amber-800',   bar: 'bg-amber-500',   card: '#f59e0b', col: 'bg-amber-500'   },
-  Negotiation:     { badge: 'bg-orange-100 text-orange-800', bar: 'bg-orange-500',  card: '#f97316', col: 'bg-orange-500'  },
-  Closed:          { badge: 'bg-green-100 text-green-800',   bar: 'bg-green-600',   card: '#16a34a', col: 'bg-green-600'   },
+  Outreach:            { badge: 'bg-blue-100 text-blue-800',    bar: 'bg-blue-600',    card: '#2563eb', col: 'bg-blue-600'    },
+  Meeting:             { badge: 'bg-purple-100 text-purple-800', bar: 'bg-purple-600',  card: '#9333ea', col: 'bg-purple-600'  },
+  'Due Diligence':     { badge: 'bg-amber-100 text-amber-800',   bar: 'bg-amber-500',   card: '#f59e0b', col: 'bg-amber-500'   },
+  Negotiation:         { badge: 'bg-orange-100 text-orange-800', bar: 'bg-orange-500',  card: '#f97316', col: 'bg-orange-500'  },
+  Closed:              { badge: 'bg-green-100 text-green-800',   bar: 'bg-green-600',   card: '#16a34a', col: 'bg-green-600'   },
+  'Strategic Partners':{ badge: 'bg-teal-100 text-teal-800',     bar: 'bg-teal-600',    card: '#0d9488', col: 'bg-teal-600'    },
+  Managers:            { badge: 'bg-pink-100 text-pink-800',     bar: 'bg-pink-600',    card: '#db2777', col: 'bg-pink-600'    },
 }
 
 export const STRATEGIES  = ['Hedge Fund','Private Credit','Real Estate Credit','Real Assets','Private Equity','Infrastructure','Venture Capital','Other']

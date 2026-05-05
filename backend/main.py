@@ -18,7 +18,7 @@ BASE_DIR = pathlib.Path(__file__).parent
 DATA_DIR = pathlib.Path(os.environ.get("DATA_DIR", BASE_DIR))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH  = DATA_DIR / "deals.db"
-STAGES   = ["Outreach", "Meeting", "Due Diligence", "Negotiation", "Closed"]
+STAGES   = ["Outreach", "Meeting", "Due Diligence", "Negotiation", "Closed", "Strategic Partners", "Managers"]
 
 app = FastAPI(title="Deal Pipeline API", version="1.0.0")
 
