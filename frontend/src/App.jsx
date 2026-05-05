@@ -57,6 +57,13 @@ export default function App() {
   const deleteDeal  = async (id) => { await api.deleteDeal(id);  load() }
   const advanceDeal = async (id) => { await api.advanceDeal(id); load() }
 
+  // Drag-to-stage on Kanban: PUT the full deal with new stage
+  const changeStage = async (deal, newStage) => {
+    const { id, created_date, modified_date, ...rest } = deal
+    await api.updateDeal(id, { ...rest, stage: newStage, fee_agreement_status: !!rest.fee_agreement_status })
+    load()
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-50">
@@ -110,7 +117,7 @@ export default function App() {
               <DealTable deals={deals} onEdit={openEdit} onDelete={deleteDeal} onAdvance={advanceDeal} onEmail={openEmail} />
             )}
             {tab === 'kanban' && (
-              <KanbanBoard deals={deals} onEdit={openEdit} onAdvance={advanceDeal} onEmail={openEmail} />
+              <KanbanBoard deals={deals} onEdit={openEdit} onAdvance={advanceDeal} onEmail={openEmail} onStageChange={changeStage} />
             )}
           </>
         )}

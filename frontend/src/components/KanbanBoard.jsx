@@ -1,13 +1,43 @@
+import { useState } from 'react'
 import { STAGES, STAGE_META, todayStr } from '../constants'
 
-export default function KanbanBoard({ deals, onEdit, onAdvance, onEmail }) {
+export default function KanbanBoard({ deals, onEdit, onAdvance, onEmail, onStageChange }) {
   const t = todayStr()
+  const [dragId, setDragId]       = useState(null)
+  const [hoverStage, setHoverStage] = useState(null)
+
+  const handleDragStart = (e, deal) => {
+    setDragId(deal.id)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(deal.id))
+  }
+
+  const handleDragOver = (e, stage) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (hoverStage !== stage) setHoverStage(stage)
+  }
+
+  const handleDrop = (e, stage) => {
+    e.preventDefault()
+    const id = Number(e.dataTransfer.getData('text/plain') || dragId)
+    setDragId(null)
+    setHoverStage(null)
+    const deal = deals.find(d => d.id === id)
+    if (deal && deal.stage !== stage && onStageChange) onStageChange(deal, stage)
+  }
+
+  const handleDragEnd = () => {
+    setDragId(null)
+    setHoverStage(null)
+  }
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-4 items-start">
       {STAGES.map(stage => {
         const col  = deals.filter(d => d.stage === stage)
         const meta = STAGE_META[stage]
+        const isHover = hoverStage === stage
         return (
           <div key={stage} className="flex-shrink-0 w-60">
             {/* Column header */}
@@ -16,15 +46,29 @@ export default function KanbanBoard({ deals, onEdit, onAdvance, onEmail }) {
               <span className="bg-white/30 text-white text-xs font-bold px-2 py-0.5 rounded-full">{col.length}</span>
             </div>
 
-            {/* Cards */}
-            <div className="bg-gray-100 rounded-b-xl min-h-40 p-2 space-y-2">
+            {/* Drop target */}
+            <div
+              onDragOver={(e) => handleDragOver(e, stage)}
+              onDragLeave={() => setHoverStage(null)}
+              onDrop={(e) => handleDrop(e, stage)}
+              className={`rounded-b-xl min-h-40 p-2 space-y-2 transition-colors ${
+                isHover ? 'bg-blue-100 ring-2 ring-blue-400' : 'bg-gray-100'
+              }`}
+            >
               {col.length === 0 && (
-                <p className="text-center text-gray-400 text-xs py-6">No deals</p>
+                <p className="text-center text-gray-400 text-xs py-6">
+                  {isHover ? 'Drop here' : 'No deals'}
+                </p>
               )}
               {col.map(deal => (
                 <div
                   key={deal.id}
-                  className="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, deal)}
+                  onDragEnd={handleDragEnd}
+                  className={`bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-move ${
+                    dragId === deal.id ? 'opacity-50' : ''
+                  }`}
                   style={{ borderLeft: `4px solid ${meta.card}` }}
                 >
                   <p className="font-bold text-gray-900 text-sm leading-snug truncate" title={deal.manager_name}>
